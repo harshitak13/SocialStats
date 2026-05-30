@@ -1,0 +1,13 @@
+node_modules/
+__pycache__/
+*.pyc
+.env
+.env.example
+backend/.env
+backend/.env.example
+socialstats_store/
+dist/
+.DS_Store
+*.egg-info/
+venv/
+.venv/
