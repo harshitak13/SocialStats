@@ -1,10 +1,21 @@
 import asyncio
+import os
+import tempfile
+from contextlib import contextmanager
 from typing import Any
 
 import yt_dlp
+from dotenv import load_dotenv
 from youtube_transcript_api import YouTubeTranscriptApi
 
 from models.schemas import VideoMetadata
+
+
+load_dotenv()
+
+
+class YouTubeExtractionError(RuntimeError):
+    """Raised when SocialStats cannot extract YouTube metadata."""
 
 
 def _as_int(value: Any) -> int:
@@ -58,6 +69,54 @@ def _calculate_engagement_rate(likes: int, comments: int, views: int) -> float:
     return round((likes + comments) / views * 100, 2)
 
 
+@contextmanager
+def _youtube_cookiefile():
+    """Yield a yt-dlp cookie file path from env vars when one is configured."""
+    cookie_file = os.getenv("YOUTUBE_COOKIES_FILE") or os.getenv("YOUTUBE_COOKIE_FILE")
+    if cookie_file:
+        yield cookie_file
+        return
+
+    cookies_content = os.getenv("YOUTUBE_COOKIES_CONTENT") or os.getenv("YOUTUBE_COOKIES")
+    if not cookies_content:
+        yield None
+        return
+
+    temp_path = ""
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            delete=False,
+            suffix=".txt",
+        ) as cookie_file:
+            cookie_file.write(cookies_content.replace("\\n", "\n"))
+            temp_path = cookie_file.name
+        yield temp_path
+    finally:
+        if temp_path:
+            try:
+                os.unlink(temp_path)
+            except OSError:
+                pass
+
+
+def _format_youtube_error(exc: Exception) -> str:
+    """Return a user-facing explanation for common YouTube extraction failures."""
+    message = str(exc)
+    lower_message = message.lower()
+    if "sign in to confirm" in lower_message or "not a bot" in lower_message:
+        return (
+            "YouTube blocked the deployed server as an automated request. "
+            "Add YouTube cookies to the backend as YOUTUBE_COOKIES_CONTENT and redeploy."
+        )
+    if "private video" in lower_message:
+        return "This YouTube video is private or unavailable to the deployed server."
+    if "video unavailable" in lower_message:
+        return "This YouTube video is unavailable, deleted, region-blocked, or age-restricted."
+    return f"YouTube metadata extraction failed: {message}"
+
+
 def _fetch_youtube_info(url: str) -> dict[str, Any]:
     """Extract YouTube metadata with yt-dlp without downloading media."""
     options = {
@@ -65,16 +124,24 @@ def _fetch_youtube_info(url: str) -> dict[str, Any]:
         "no_warnings": True,
         "skip_download": True,
         "ignoreerrors": False,
+        "noplaylist": True,
+        "retries": 2,
     }
-    with yt_dlp.YoutubeDL(options) as ydl:
-        return ydl.extract_info(url, download=False) or {}
+    with _youtube_cookiefile() as cookiefile:
+        if cookiefile:
+            options["cookiefile"] = cookiefile
+        try:
+            with yt_dlp.YoutubeDL(options) as ydl:
+                info = ydl.extract_info(url, download=False) or {}
+        except Exception as exc:
+            raise YouTubeExtractionError(_format_youtube_error(exc)) from exc
 
-
-def _entry_text(entry: Any) -> str:
-    """Read transcript text from either dict-like or object-like entries."""
-    if isinstance(entry, dict):
-        return str(entry.get("text") or "").strip()
-    return str(getattr(entry, "text", "") or "").strip()
+    if not info.get("id"):
+        raise YouTubeExtractionError(
+            "YouTube returned empty metadata. If this only happens on Render, add "
+            "YOUTUBE_COOKIES_CONTENT to the backend environment and redeploy."
+        )
+    return info
 
 
 def _fetch_youtube_transcript(source_video_id: str) -> str:
@@ -89,13 +156,16 @@ def _fetch_youtube_transcript(source_video_id: str) -> str:
     )
 
 
+def _entry_text(entry: Any) -> str:
+    """Read transcript text from either dict-like or object-like entries."""
+    if isinstance(entry, dict):
+        return str(entry.get("text") or "").strip()
+    return str(getattr(entry, "text", "") or "").strip()
+
+
 async def get_youtube_data(url: str) -> VideoMetadata:
     """Fetch YouTube metadata and transcript data for SocialStats Video A."""
-    try:
-        info = await asyncio.to_thread(_fetch_youtube_info, url)
-    except Exception:
-        # NOTE: yt-dlp can fail for private, deleted, geo-blocked, or login-gated videos.
-        info = {}
+    info = await asyncio.to_thread(_fetch_youtube_info, url)
 
     views = _as_int(info.get("view_count"))
     likes = _as_int(info.get("like_count"))
