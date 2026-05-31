@@ -39,7 +39,8 @@ cp .env.example .env
 
 Add your `OPENAI_API_KEY` to `.env`.
 Set `ALLOWED_ORIGINS` to the frontend URLs that should call the API, separated by commas.
-If YouTube blocks the deployed backend, export cookies in Netscape format and set them as `YOUTUBE_COOKIES_CONTENT`.
+Set `YOUTUBE_API_KEY` to enable the official YouTube Data API fallback when `yt-dlp` is blocked in production.
+If you do not use a YouTube API key, export cookies in Netscape format and set them as `YOUTUBE_COOKIES_CONTENT`.
 
 ```bash
 uvicorn main:app --reload
