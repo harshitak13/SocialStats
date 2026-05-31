@@ -29,8 +29,13 @@ async def chat(payload: ChatRequest, request: Request) -> StreamingResponse:
         media_type="text/event-stream",
     )
     origin = request.headers.get("origin", "http://localhost:3000")
-    if origin not in {"http://localhost:3000", "http://127.0.0.1:3000"}:
-        origin = "http://localhost:3000"
+    allowed_origins = {
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "https://social-stats-one.vercel.app",
+    }
+    if origin not in allowed_origins:
+        origin = "https://social-stats-one.vercel.app"
     response.headers["Access-Control-Allow-Origin"] = origin
     response.headers["Access-Control-Allow-Credentials"] = "true"
     response.headers["Cache-Control"] = "no-cache"
