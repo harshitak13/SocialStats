@@ -4,8 +4,7 @@ import axios from 'axios'
 import ChatPanel from './components/ChatPanel.jsx'
 import URLInput from './components/URLInput.jsx'
 import VideoCard from './components/VideoCard.jsx'
-
-const API_URL = import.meta.env.VITE_API_URL || ''
+import { API_URL, assertApiConfigured } from './lib/api.js'
 
 function createSessionId() {
   if (window.crypto?.randomUUID) {
@@ -27,6 +26,7 @@ export default function App() {
     setError(null)
 
     try {
+      assertApiConfigured()
       const response = await axios.post(`${API_URL}/api/ingest`, {
         youtube_url: youtubeUrl,
         instagram_url: instagramUrl
@@ -36,7 +36,7 @@ export default function App() {
       setIngested(true)
     } catch (err) {
       const detail = err.response?.data?.detail
-      setError(detail || 'SocialStats could not analyze those videos. Check the URLs and try again.')
+      setError(detail || err.message || 'SocialStats could not analyze those videos. Check the URLs and try again.')
     } finally {
       setIsLoading(false)
     }

@@ -38,6 +38,7 @@ cp .env.example .env
 ```
 
 Add your `OPENAI_API_KEY` to `.env`.
+Set `ALLOWED_ORIGINS` to the frontend URLs that should call the API, separated by commas.
 
 ```bash
 uvicorn main:app --reload
@@ -50,6 +51,8 @@ cd frontend
 npm install
 npm run dev
 ```
+
+For deployment, set `VITE_API_URL` in the frontend host to the deployed backend URL, for example `https://your-api.onrender.com`. Do not include a trailing `/api`; the app adds `/api/ingest` and `/api/chat` itself.
 
 ## Usage
 

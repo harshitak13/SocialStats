@@ -2,8 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 
 import LoadingSpinner from './LoadingSpinner.jsx'
 import MessageBubble from './MessageBubble.jsx'
-
-const API_URL = import.meta.env.VITE_API_URL || ''
+import { API_URL, assertApiConfigured } from '../lib/api.js'
 
 const suggestedQuestions = [
   'Why did Video A get more engagement than Video B?',
@@ -47,6 +46,7 @@ export default function ChatPanel({ sessionId }) {
     setIsStreaming(true)
 
     try {
+      assertApiConfigured()
       const response = await fetch(`${API_URL}/api/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

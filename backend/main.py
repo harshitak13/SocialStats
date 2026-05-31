@@ -1,3 +1,5 @@
+import os
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -7,15 +9,23 @@ from routers.ingest import router as ingest_router
 
 app = FastAPI(title="SocialStats API", version="1.0.0")
 
+DEFAULT_ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "https://social-stats-one.vercel.app",
+    "https://social-stats-git-main-harshitak13s-projects.vercel.app",
+    "https://social-stats-m2edxvmg7-harshitak13s-projects.vercel.app",
+]
+
+allowed_origins = [
+    origin.strip().rstrip("/")
+    for origin in os.getenv("ALLOWED_ORIGINS", "").split(",")
+    if origin.strip()
+] or DEFAULT_ALLOWED_ORIGINS
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-        "https://social-stats-one.vercel.app",
-        "social-stats-git-main-harshitak13s-projects.vercel.app",
-        "social-stats-m2edxvmg7-harshitak13s-projects.vercel.app"
-    ],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
