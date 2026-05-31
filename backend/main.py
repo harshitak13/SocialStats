@@ -13,6 +13,8 @@ app.add_middleware(
         "http://localhost:3000",
         "http://127.0.0.1:3000",
         "https://social-stats-one.vercel.app",
+        "social-stats-git-main-harshitak13s-projects.vercel.app",
+        "social-stats-m2edxvmg7-harshitak13s-projects.vercel.app"
     ],
     allow_credentials=True,
     allow_methods=["*"],
